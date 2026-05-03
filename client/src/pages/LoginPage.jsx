@@ -54,7 +54,38 @@ export function LoginPage() {
           </label>
         </>
       }
-    />
+    >
+      <div className="test-credentials">
+        <h3>Test Accounts</h3>
+        <div className="test-user">
+          <div>
+            <strong>Ava Admin</strong>
+            <span>admin@taskorbit.dev</span>
+          </div>
+          <span className="copy-hint" onClick={() => setFormState({ email: "admin@taskorbit.dev", password: "password123" })}>
+            Use this
+          </span>
+        </div>
+        <div className="test-user">
+          <div>
+            <strong>Priya Nair</strong>
+            <span>priya@taskorbit.dev</span>
+          </div>
+          <span className="copy-hint" onClick={() => setFormState({ email: "priya@taskorbit.dev", password: "password123" })}>
+            Use this
+          </span>
+        </div>
+        <div className="test-user">
+          <div>
+            <strong>Arjun Mehta</strong>
+            <span>arjun@taskorbit.dev</span>
+          </div>
+          <span className="copy-hint" onClick={() => setFormState({ email: "arjun@taskorbit.dev", password: "password123" })}>
+            Use this
+          </span>
+        </div>
+      </div>
+    </AuthForm>
   );
 }
 

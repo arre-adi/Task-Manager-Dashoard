@@ -23,8 +23,14 @@
   box-shadow: var(--shadow-soft);
 }
 
-.auth-card {
+.auth-container {
   width: min(100%, 440px);
+  display: grid;
+  gap: 16px;
+}
+
+.auth-card {
+  width: 100%;
   padding: 28px;
   border-radius: var(--radius-md);
   display: grid;
@@ -40,6 +46,59 @@
   font-size: 2.05rem;
   font-weight: 800;
   line-height: 1.1;
+}
+
+.test-credentials {
+  padding: 20px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
+}
+
+.test-credentials h3 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  font-weight: 800;
+}
+
+.test-user {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.test-user:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.test-user div strong {
+  display: block;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.test-user div span {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.test-user .copy-hint {
+  font-size: 0.75rem;
+  color: var(--primary-green);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--color-green-soft);
 }
 
 .auth-form,
@@ -148,5 +207,3 @@ select:focus {
   color: var(--primary-green);
   font-weight: 700;
 }
-
-
