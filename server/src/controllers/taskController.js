@@ -30,9 +30,11 @@ const taskSelectCore = `
     creator.id AS created_by_id,
     creator.name AS created_by_name,
     creator.email AS created_by_email,
+    creator.avatar_url AS created_by_avatar_url,
     assignee.id AS assigned_to_id,
     assignee.name AS assigned_to_name,
-    assignee.email AS assigned_to_email
+    assignee.email AS assigned_to_email,
+    assignee.avatar_url AS assigned_to_avatar_url
   FROM tasks t
   JOIN projects p ON p.id = t.project_id
   JOIN users creator ON creator.id = t.created_by

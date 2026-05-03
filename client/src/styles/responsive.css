@@ -1,0 +1,87 @@
+@media (max-width: 1220px) {
+  .dashboard-bento__status,
+  .stats-grid,
+  .member-layout,
+  .teams-grid,
+  .kanban-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bento-card--primary,
+  .bento-card--alert,
+  .dashboard-bento > .bento-card:not(.bento-card--primary):not(.bento-card--alert) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 1080px) {
+  .app-shell,
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+  }
+
+  .project-sidebar {
+    position: static;
+    top: auto;
+  }
+
+  .topbar {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar-avatar {
+    justify-content: flex-start;
+  }
+
+  .dashboard-header,
+  .project-summary,
+  .filter-panel__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 860px) {
+  .task-row {
+    grid-template-columns: 1fr;
+  }
+
+  .task-row__progress,
+  .table-actions,
+  .task-actions,
+  .task-meta,
+  .member-item,
+  .member-item__meta,
+  .compact-task-item__main {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .main-stage,
+  .panel,
+  .auth-card,
+  .modal-card,
+  .sidebar {
+    padding: 16px;
+  }
+
+  .task-form__grid,
+  .team-card__stats {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-filters {
+    width: 100%;
+  }
+
+  .toolbar-control {
+    min-width: 100%;
+  }
+}
+

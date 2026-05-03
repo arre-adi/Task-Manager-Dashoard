@@ -34,7 +34,7 @@ export function TaskModal({
         description: task.description || "",
         status: task.status,
         priority: task.priority,
-        dueDate: task.dueDate,
+        dueDate: task.dueDate ? task.dueDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
         assignedTo: String(task.assignedTo.id)
       });
       return;
@@ -42,7 +42,7 @@ export function TaskModal({
 
     setFormState({
       ...initialState,
-      dueDate: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+      dueDate: new Date().toISOString().slice(0, 10),
       assignedTo: currentUser ? String(currentUser.id) : ""
     });
   }, [open, task, currentUser]);

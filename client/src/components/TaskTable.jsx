@@ -19,7 +19,7 @@ export function TaskTable({ tasks, canDelete, canEdit, onEdit, onDelete }) {
         <article className="task-row" key={task.id}>
           <div className="task-row__main">
             <strong>{task.title}</strong>
-            <p>{task.description || task.projectName || "No description"}</p>
+            <p>{task.projectName}</p>
           </div>
           <div className="task-row__meta">
             <span className={`status-pill status-pill--${task.status.toLowerCase()}`}>
@@ -29,7 +29,7 @@ export function TaskTable({ tasks, canDelete, canEdit, onEdit, onDelete }) {
               {task.priority}
             </span>
             <span className="task-row__deadline">
-              Due {new Date(task.dueDate).toLocaleDateString()} · {task.assignedTo.name}
+              Due {new Date(task.dueDate).toLocaleDateString("en-IN")} · {task.assignedTo.name}
             </span>
           </div>
           <div className="task-row__progress">
@@ -46,7 +46,7 @@ export function TaskTable({ tasks, canDelete, canEdit, onEdit, onDelete }) {
             ) : null}
             {canDelete(task) ? (
               <button className="danger-icon-button" title="Delete task" type="button" onClick={() => onDelete(task)}>
-                <Trash2 className="delete-icon" size={14} strokeWidth={2} />
+                <Trash2 className="delete-icon" size={18} strokeWidth={2.2} />
               </button>
             ) : null}
           </div>

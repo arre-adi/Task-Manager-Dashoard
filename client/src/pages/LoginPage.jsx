@@ -29,7 +29,6 @@ export function LoginPage() {
   return (
     <AuthForm
       title="Welcome back"
-      description="Track priorities, unblock your team, and move work from planning to done."
       submitLabel="Login"
       onSubmit={handleSubmit}
       loading={authLoading}

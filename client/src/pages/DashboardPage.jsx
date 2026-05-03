@@ -1,86 +1,176 @@
+import { ArrowRight, Plus } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ProjectModal } from "../components/ProjectModal.jsx";
 import { StatCard } from "../components/StatCard.jsx";
+import { TaskModal } from "../components/TaskModal.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { useAppData } from "../hooks/useAppData.js";
+import { getAvatarUrl } from "../utils/avatar.js";
+
+function startOfToday() {
+  return new Date(new Date().toDateString());
+}
 
 function isOverdue(task) {
-  return task.status !== "DONE" && new Date(task.dueDate) < new Date(new Date().toDateString());
+  return task.status !== "DONE" && new Date(task.dueDate) < startOfToday();
 }
 
 function isDueSoon(task) {
-  const today = new Date(new Date().toDateString());
+  const today = startOfToday();
+  const due = new Date(task.dueDate);
   const inThreeDays = new Date(today);
   inThreeDays.setDate(inThreeDays.getDate() + 3);
-  const due = new Date(task.dueDate);
 
   return task.status !== "DONE" && due >= today && due <= inThreeDays;
 }
 
-function priorityRank(priority) {
-  return { HIGH: 0, MEDIUM: 1, LOW: 2 }[priority] ?? 3;
+function daysUntil(dueDate) {
+  return Math.ceil((new Date(dueDate) - startOfToday()) / 86400000);
+}
+
+function formatDueLabel(task) {
+  const delta = daysUntil(task.dueDate);
+
+  if (delta < 0) {
+    return `${Math.abs(delta)} day${Math.abs(delta) === 1 ? "" : "s"} overdue`;
+  }
+
+  if (delta === 0) {
+    return "Due today";
+  }
+
+  return `${delta} day${delta === 1 ? "" : "s"} left`;
+}
+
+function compareTasks(left, right) {
+  const leftOverdue = isOverdue(left);
+  const rightOverdue = isOverdue(right);
+
+  if (leftOverdue !== rightOverdue) {
+    return leftOverdue ? -1 : 1;
+  }
+
+  const leftSoon = isDueSoon(left);
+  const rightSoon = isDueSoon(right);
+
+  if (leftSoon !== rightSoon) {
+    return leftSoon ? -1 : 1;
+  }
+
+  return new Date(left.dueDate) - new Date(right.dueDate);
+}
+
+function activityCopy(task) {
+  if (task.status === "DONE") {
+    return `${task.title} marked as done`;
+  }
+
+  if (task.status === "IN_PROGRESS") {
+    return `${task.title} moved into progress`;
+  }
+
+  return `${task.title} assigned in ${task.projectName}`;
 }
 
 export function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { createProject, projects, tasks, loading, error, searchTerm } = useAppData();
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [sortOrder, setSortOrder] = useState("DUE_ASC");
+  const {
+    createProject,
+    createTask,
+    error,
+    loading,
+    projects,
+    searchTerm,
+    selectedProjectId,
+    tasks
+  } = useAppData();
   const [projectModalOpen, setProjectModalOpen] = useState(false);
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [projectError, setProjectError] = useState("");
+  const [taskError, setTaskError] = useState("");
+  const [viewingTask, setViewingTask] = useState(null);
+  const [viewingStatus, setViewingStatus] = useState(null);
 
+  const selectedProject = projects.find((project) => project.id === selectedProjectId) || projects[0] || null;
   const normalizedSearch = searchTerm.trim().toLowerCase();
-  const searchedTasks = normalizedSearch
+  const visibleTasks = (normalizedSearch
     ? tasks.filter((task) => {
-        const haystack = `${task.title} ${task.projectName} ${task.assignedTo.name}`.toLowerCase();
-        return haystack.includes(normalizedSearch);
-      })
-    : tasks;
-
-  const visibleTasks = searchedTasks
-    .filter((task) => (statusFilter === "ALL" ? true : task.status === statusFilter))
-    .sort((left, right) => {
-      if (sortOrder === "DUE_DESC") {
-        return new Date(right.dueDate) - new Date(left.dueDate);
+      const haystack = [
+        task.title,
+        task.description || "",
+        task.assignedTo.name,
+        task.projectName
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedSearch);
+    })
+    : tasks).filter(task => {
+      if (!viewingStatus) return true;
+      const project = projects.find(p => p.id === task.projectId);
+      if (!project) return true;
+      
+      const projectTasks = tasks.filter(t => t.projectId === project.id);
+      if (viewingStatus === "DONE") {
+        return projectTasks.length > 0 && projectTasks.every(t => t.status === "DONE");
       }
-
-      if (sortOrder === "PRIORITY") {
-        return priorityRank(left.priority) - priorityRank(right.priority);
+      if (viewingStatus === "IN_PROGRESS") {
+        return projectTasks.some(t => t.status === "IN_PROGRESS");
       }
-
-      return new Date(left.dueDate) - new Date(right.dueDate);
+      if (viewingStatus === "TODO") {
+        return projectTasks.length > 0 && projectTasks.every(t => t.status === "TODO");
+      }
+      return true;
     });
 
-  const todoCount = visibleTasks.filter((task) => task.status === "TODO").length;
-  const inProgressCount = visibleTasks.filter((task) => task.status === "IN_PROGRESS").length;
-  const doneCount = visibleTasks.filter((task) => task.status === "DONE").length;
-  const overdueTasks = visibleTasks.filter(isOverdue);
-  const dueSoonTasks = visibleTasks.filter(isDueSoon);
-  const myTasks = visibleTasks.filter((task) => task.assignedTo.id === user.id);
-  const todoTasks = visibleTasks.filter((task) => task.status === "TODO").slice(0, 4);
-  const activeTasks = visibleTasks
-    .filter((task) => task.status === "IN_PROGRESS" || task.status === "DONE")
+  const myTasks = visibleTasks
+    .filter((task) => task.assignedTo.id === user.id)
+    .sort(compareTasks)
+    .slice(0, 6);
+  const overdueTasks = visibleTasks.filter(isOverdue).sort(compareTasks).slice(0, 5);
+  const dueSoonTasks = visibleTasks.filter((task) => !isOverdue(task) && isDueSoon(task)).sort(compareTasks).slice(0, 5);
+  const recentActivity = [...visibleTasks]
+    .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt))
     .slice(0, 5);
+  const projectStats = projects.reduce(
+    (stats, project) => {
+      const projectTasks = tasks.filter((t) => t.projectId === project.id);
+      if (projectTasks.length > 0 && projectTasks.every((t) => t.status === "DONE")) {
+        stats.ended++;
+      } else if (projectTasks.some((t) => t.status === "IN_PROGRESS")) {
+        stats.running++;
+      } else {
+        stats.pending++;
+      }
+      return stats;
+    },
+    { ended: 0, running: 0, pending: 0 }
+  );
 
-  const groupedMyTasks = {
-    TODO: myTasks.filter((task) => task.status === "TODO"),
-    IN_PROGRESS: myTasks.filter((task) => task.status === "IN_PROGRESS"),
-    DONE: myTasks.filter((task) => task.status === "DONE")
-  };
+  const activeMembers = Array.from(
+    visibleTasks
+      .filter((task) => task.status !== "DONE")
+      .reduce((members, task) => {
+        const current = members.get(task.assignedTo.id) || {
+          id: task.assignedTo.id,
+          name: task.assignedTo.name,
+          avatarUrl: task.assignedTo.avatarUrl,
+          activeTasks: 0,
+          projectNames: new Set()
+        };
 
-  function progressForTask(task) {
-    if (task.status === "DONE") {
-      return 100;
-    }
+        current.activeTasks += 1;
+        current.projectNames.add(task.projectName);
+        members.set(task.assignedTo.id, current);
 
-    if (task.status === "IN_PROGRESS") {
-      return 64;
-    }
-
-    return 18;
-  }
+        return members;
+      }, new Map())
+      .values()
+  )
+    .sort((left, right) => right.activeTasks - left.activeTasks)
+    .slice(0, 5);
 
   async function handleCreateProject(payload) {
     setProjectError("");
@@ -94,197 +184,345 @@ export function DashboardPage() {
     }
   }
 
+  async function handleCreateTask(payload) {
+    setTaskError("");
+
+    try {
+      await createTask(payload);
+      setTaskModalOpen(false);
+      navigate("/projects");
+    } catch (createError) {
+      setTaskError(createError.message);
+    }
+  }
+
   return (
-    <div className="page-grid">
-      <section className="dashboard-intro">
-        <div className="dashboard-intro__copy">
-          <p>
-            {projects.length} active project{projects.length === 1 ? "" : "s"} in your workspace
-          </p>
+    <div className="dashboard-wrapper">
+      <header className="dashboard-header dashboard-header--html-copy">
+        <div>
+          <h1 className="page-title-large">Hey {user?.name.split(" ")[0]}!</h1>
+          <p className="page-subtitle">Plan, prioritize, and accomplish your tasks with ease.</p>
+          {loading ? <p className="dashboard-inline-state">Refreshing workspace data...</p> : null}
+          {error ? <p className="form-error">{error}</p> : null}
         </div>
-        {loading ? <p>Refreshing workspace data...</p> : null}
-        {error ? <p className="form-error">{error}</p> : null}
-      </section>
-
-      <section className="stats-grid">
-        <StatCard label="TODO" value={todoCount} />
-        <StatCard label="IN PROGRESS" tone="warning" value={inProgressCount} />
-        <StatCard label="DONE" tone="success" value={doneCount} />
-      </section>
-
-      <section className="panel">
-        <div className="panel-toolbar">
-          <div className="toolbar-actions">
-            <label className="toolbar-control">
-              <span>Filter</span>
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                <option value="ALL">All</option>
-                <option value="TODO">Todo</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="DONE">Done</option>
-              </select>
-            </label>
-            <label className="toolbar-control">
-              <span>Sort</span>
-              <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}>
-                <option value="DUE_ASC">Due date</option>
-                <option value="DUE_DESC">Latest due</option>
-                <option value="PRIORITY">Priority</option>
-              </select>
-            </label>
-          </div>
-          <button className="dark-pill" type="button" onClick={() => setProjectModalOpen(true)}>
-            + New Project
+        <div className="dashboard-header__actions">
+          <button className="primary-button dashboard-add-project-button" type="button" onClick={() => setProjectModalOpen(true)}>
+            <Plus size={16} strokeWidth={2.5} />
+            Add Project
           </button>
         </div>
-      </section>
+      </header>
 
-      <section className="task-stack-section">
-        <div className="section-label-row">
-          <span className="section-label">Todo</span>
+      <section className="dashboard-bento">
+        <div className="dashboard-bento__status dashboard-bento__status--html-copy">
+          <StatCard
+            label="Total Projects"
+            onClick={() => {
+              setViewingStatus(null);
+              navigate("/projects");
+            }}
+            tone="todo"
+            value={projects.length}
+          />
+          <StatCard
+            label="Ended Projects"
+            onClick={() => setViewingStatus("DONE")}
+            tone="default"
+            value={projectStats.ended}
+          />
+          <StatCard
+            label="Running Projects"
+            onClick={() => setViewingStatus("IN_PROGRESS")}
+            tone="default"
+            value={projectStats.running}
+          />
+          <StatCard
+            label="Pending Projects"
+            onClick={() => setViewingStatus("TODO")}
+            tone="default"
+            value={projectStats.pending}
+          />
         </div>
-        <div className="task-list">
-          {todoTasks.length ? (
-            todoTasks.map((task) => (
-              <article className="task-row" key={task.id}>
-                <div className="task-row__main">
-                  <strong>{task.title}</strong>
-                  <p>{task.projectName}</p>
-                </div>
-                <div className="task-row__meta">
-                  <span className={`status-pill status-pill--${task.status.toLowerCase()}`}>
-                    {task.status.replace("_", " ")}
-                  </span>
-                  <span className={`priority-pill priority-pill--${task.priority.toLowerCase()}`}>
-                    {task.priority}
-                  </span>
-                  <span className="task-row__deadline">
-                    {isOverdue(task)
-                      ? "Overdue"
-                      : `${Math.max(0, Math.ceil((new Date(task.dueDate) - new Date()) / 86400000))} days left`}
-                  </span>
-                </div>
-                <div className="task-row__progress">
-                  <div className="progress-track">
-                    <span style={{ width: `${progressForTask(task)}%` }} />
-                  </div>
-                  <strong>{progressForTask(task)}%</strong>
-                </div>
-              </article>
-            ))
-          ) : (
-            <div className="task-row task-row--empty">
-              <p>No todo tasks match your current filters.</p>
+
+        <article className="panel bento-card bento-card--primary">
+          <div className="panel-header panel-header--compact">
+            <div>
+               <h2 style={{ fontWeight: "bold" }}>
+                 {viewingStatus ? `${viewingStatus.replace("_", " ")} PROJECTS TASKS` : "MY TASKS"}
+               </h2>
+               {viewingStatus && (
+                 <button className="inline-link-button" onClick={() => setViewingStatus(null)} style={{ fontSize: "12px", color: "var(--primary-green)" }}>
+                   Clear filter
+                 </button>
+               )}
             </div>
-          )}
-        </div>
-      </section>
-
-      <section className="dashboard-columns">
-        <article className="panel">
-          <div className="panel-header panel-header--tight">
-            <span className="section-label">Overdue Tasks</span>
-            <span>{overdueTasks.length}</span>
+            <button className="inline-link-button" type="button" onClick={() => navigate("/projects")}>
+              Open board
+              <ArrowRight size={16} strokeWidth={2} />
+            </button>
           </div>
-          <div className="stack-list">
+
+          <div className="task-feed">
+            {myTasks.length ? (
+              myTasks.map((task) => (
+                <article
+                  className="compact-task-item"
+                  key={task.id}
+                  onClick={() => setViewingTask(task)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <div className="compact-task-item__main">
+                    <strong>{task.title}</strong>
+                    <p>{task.projectName}</p>
+                  </div>
+                  <div className="compact-task-item__meta">
+                    <span className={`status-pill status-pill--${task.status.toLowerCase()}`}>
+                      {task.status.replace("_", " ")}
+                    </span>
+                    <span className={`priority-pill priority-pill--${task.priority.toLowerCase()}`}>
+                      {task.priority}
+                    </span>
+                    <span className="due-chip">{formatDueLabel(task)}</span>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="empty-placeholder">
+                <strong>{viewingStatus ? `No ${viewingStatus.toLowerCase().replace("_", " ")} projects found.` : "No tasks assigned to you yet."}</strong>
+                <p>{viewingStatus ? "Try clearing the filter to see all your active work." : "Your personal queue will show up here once work gets assigned."}</p>
+              </div>
+            )}
+          </div>
+        </article>
+
+        <article className="panel bento-card bento-card--alert">
+          <div className="panel-header panel-header--compact">
+            <div>
+              <h2 style={{ fontWeight: "bold" }}>OVERDUE</h2>
+            </div>
+            <span className="count-badge">{overdueTasks.length}</span>
+          </div>
+
+          <div className="stacked-list">
             {overdueTasks.length ? (
               overdueTasks.map((task) => (
-                <div className="mini-task" key={task.id}>
+                <article
+                  className="mini-list-item mini-list-item--alert"
+                  key={task.id}
+                  onClick={() => setViewingTask(task)}
+                  style={{ cursor: "pointer" }}
+                >
                   <strong>{task.title}</strong>
-                  <span>
-                    {task.projectName} · {task.assignedTo.name}
-                  </span>
-                </div>
+                  <p>{task.projectName}</p>
+                  <span>{formatDueLabel(task)}</span>
+                </article>
               ))
             ) : (
-              <p>No overdue work right now.</p>
+              <div className="empty-placeholder empty-placeholder--soft">
+                <strong>No overdue tasks.</strong>
+                <p>Your team is clear on urgent carryover right now.</p>
+              </div>
             )}
           </div>
         </article>
 
-        <article className="panel">
-          <div className="panel-header panel-header--tight">
-            <span className="section-label">Due Soon</span>
-            <span>{dueSoonTasks.length}</span>
+        <article className="panel bento-card">
+          <div className="panel-header panel-header--compact">
+            <div>
+               <h2 style={{ fontWeight: "bold" }}>DUE SOON</h2>
+            </div>
+            <span className="count-badge">{dueSoonTasks.length}</span>
           </div>
-          <div className="stack-list">
+
+          <div className="stacked-list">
             {dueSoonTasks.length ? (
               dueSoonTasks.map((task) => (
-                <div className="mini-task" key={task.id}>
+                <article
+                  className="mini-list-item mini-list-item--warning"
+                  key={task.id}
+                  onClick={() => setViewingTask(task)}
+                  style={{ cursor: "pointer" }}
+                >
                   <strong>{task.title}</strong>
-                  <span>
-                    Due {new Date(task.dueDate).toLocaleDateString("en-IN")} · {task.projectName}
-                  </span>
-                </div>
+                  <p>{task.assignedTo.name}</p>
+                  <span>{formatDueLabel(task)}</span>
+                </article>
               ))
             ) : (
-              <p>No deadlines inside the next three days.</p>
+              <div className="empty-placeholder empty-placeholder--soft">
+                <strong>No close deadlines.</strong>
+                <p>Nothing is due inside the next three days.</p>
+              </div>
             )}
           </div>
         </article>
-      </section>
 
-      <section className="task-stack-section">
-        <div className="section-label-row">
-          <span className="section-label">Active Projects</span>
-        </div>
-        <div className="task-list">
-          {activeTasks.length ? (
-            activeTasks.map((task) => (
-              <article className="task-row" key={task.id}>
-                <div className="task-row__main">
-                  <strong>{task.title}</strong>
-                  <p>
-                    {task.projectName} · Assigned to {task.assignedTo.name}
-                  </p>
-                </div>
-                <div className="task-row__meta">
-                  <span className={`status-pill status-pill--${task.status.toLowerCase()}`}>
-                    {task.status.replace("_", " ")}
-                  </span>
-                  <span className={`priority-pill priority-pill--${task.priority.toLowerCase()}`}>
-                    {task.priority}
-                  </span>
-                </div>
-                <div className="task-row__progress">
-                  <div className="progress-track">
-                    <span style={{ width: `${progressForTask(task)}%` }} />
+        <article className="panel bento-card">
+          <div className="panel-header panel-header--compact">
+            <div>
+               <h2 style={{ fontWeight: "bold" }}>RECENT ACTIVITY</h2>
+            </div>
+          </div>
+
+          <div className="activity-feed">
+            {recentActivity.length ? (
+              recentActivity.map((task) => (
+                <article className="activity-item" key={task.id}>
+                  <div className="activity-item__dot" />
+                  <div>
+                    <strong>{activityCopy(task)}</strong>
+                    <p>
+                      {task.projectName} · {new Date(task.updatedAt).toLocaleDateString("en-IN")}
+                    </p>
                   </div>
-                  <strong>{progressForTask(task)}%</strong>
-                </div>
-              </article>
-            ))
-          ) : (
-            <div className="task-row task-row--empty">
-              <p>No active tasks yet.</p>
-            </div>
-          )}
-        </div>
-      </section>
+                </article>
+              ))
+            ) : (
+              <div className="empty-placeholder empty-placeholder--soft">
+                <strong>No recent updates yet.</strong>
+                <p>Task movement will appear here as soon as the team starts working.</p>
+              </div>
+            )}
+          </div>
+        </article>
 
-      <section className="panel">
-        <div className="panel-header panel-header--tight">
-          <h2>My Tasks</h2>
-          <span>{myTasks.length}</span>
-        </div>
-        <div className="my-task-grid">
-          {Object.entries(groupedMyTasks).map(([status, groupedTasks]) => (
-            <div className="my-task-column" key={status}>
-              <h3>{status.replace("_", " ")}</h3>
-              <span className="my-task-column__count">{groupedTasks.length}</span>
+        <article className="panel bento-card">
+          <div className="panel-header panel-header--compact">
+            <div>
+              <h2 style={{ fontWeight: "bold" }}>ACTIVE MEMBERS</h2>
             </div>
-          ))}
-        </div>
+          </div>
+
+          <div className="active-member-list">
+            {activeMembers.length ? (
+              activeMembers.map((member) => (
+                <article className="active-member-item" key={member.id}>
+                  <div className="active-member-item__avatar">
+                    {member.avatarUrl ? (
+                      <img
+                        alt={member.name}
+                        src={getAvatarUrl(member.avatarUrl)}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    ) : (
+                      member.name
+                        .split(" ")
+                        .map((part) => part[0])
+                        .join("")
+                        .slice(0, 2)
+                        .toUpperCase()
+                    )}
+                  </div>
+                  <div className="active-member-item__body">
+                    <strong>{member.name}</strong>
+                    <p>{Array.from(member.projectNames).slice(0, 2).join(", ")}</p>
+                  </div>
+                  <span className="active-member-item__count">{member.activeTasks}</span>
+                </article>
+              ))
+            ) : (
+              <div className="empty-placeholder empty-placeholder--soft">
+                <strong>No active members.</strong>
+                <p>Active team members appear here when tasks are in motion.</p>
+              </div>
+            )}
+          </div>
+        </article>
+
+        {viewingTask && (
+          <div className="modal-backdrop" onClick={() => setViewingTask(null)}>
+            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+              <div className="modal-card__header">
+                <div>
+                  <p className="eyebrow">{viewingTask.projectName}</p>
+                  <h3>{viewingTask.title}</h3>
+                </div>
+                <button className="modal-close-button" onClick={() => setViewingTask(null)}>
+                  &times;
+                </button>
+              </div>
+              <div style={{ display: "grid", gap: "16px" }}>
+                <p style={{ fontSize: "1rem", lineHeight: "1.6" }}>{viewingTask.description || "No description provided."}</p>
+                <div className="task-meta">
+                  <span className={`status-pill status-pill--${viewingTask.status.toLowerCase()}`}>
+                    {viewingTask.status}
+                  </span>
+                  <span className={`badge badge--${viewingTask.priority.toLowerCase()}`}>
+                    {viewingTask.priority}
+                  </span>
+                  <span>Due {new Date(viewingTask.dueDate).toLocaleDateString("en-IN")}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {viewingStatus && (
+          <div className="modal-backdrop" onClick={() => setViewingStatus(null)}>
+            <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+              <div className="modal-card__header">
+                <div>
+                  <p className="eyebrow">Status View</p>
+                  <h3>Tasks in {viewingStatus.replace("_", " ")}</h3>
+                </div>
+                <button className="modal-close-button" onClick={() => setViewingStatus(null)}>
+                  &times;
+                </button>
+              </div>
+              <div className="stacked-list">
+                {visibleTasks
+                  .filter((task) => task.status === viewingStatus)
+                  .map((task) => (
+                    <article
+                      className="compact-task-item"
+                      key={task.id}
+                      onClick={() => {
+                        setViewingStatus(null);
+                        setViewingTask(task);
+                      }}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <div className="compact-task-item__main">
+                        <strong>{task.title}</strong>
+                        <p>{task.projectName}</p>
+                      </div>
+                      <div className="compact-task-item__meta">
+                        <span className={`priority-pill priority-pill--${task.priority.toLowerCase()}`}>
+                          {task.priority}
+                        </span>
+                        <span className="due-chip">{formatDueLabel(task)}</span>
+                      </div>
+                    </article>
+                  ))}
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       <ProjectModal
-        open={projectModalOpen}
         error={projectError}
+        open={projectModalOpen}
         onClose={() => {
           setProjectModalOpen(false);
           setProjectError("");
         }}
         onSave={handleCreateProject}
+      />
+
+      <TaskModal
+        open={taskModalOpen}
+        project={selectedProject}
+        task={null}
+        currentUser={user}
+        isAdmin={selectedProject?.currentUserRole === "ADMIN"}
+        canManageAssignment={selectedProject?.currentUserRole === "ADMIN"}
+        canSetStatus={() => true}
+        onClose={() => {
+          setTaskModalOpen(false);
+          setTaskError("");
+        }}
+        onSave={handleCreateTask}
       />
     </div>
   );

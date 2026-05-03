@@ -1,7 +1,14 @@
-import { Bell, CheckSquare, LayoutDashboard, Users, Search } from "lucide-react";
+import {
+  LayoutDashboard,
+  ClipboardList,
+  Users,
+  Search,
+  LogOut
+} from "lucide-react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.js";
 import { useAppData } from "../hooks/useAppData.js";
+import { getAvatarUrl } from "../utils/avatar.js";
 
 export function AppLayout() {
   const { user, logout } = useAuth();
@@ -13,8 +20,9 @@ export function AppLayout() {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
   const pageTitle = location.pathname.startsWith("/projects")
-    ? "My Task"
+    ? "My Tasks"
     : location.pathname.startsWith("/teams")
       ? "Teams"
       : "Dashboard";
@@ -23,25 +31,49 @@ export function AppLayout() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-block">
-          <h1>Task Orbit.</h1>
+          <h1>Task Orbit</h1>
         </div>
 
         <nav className="sidebar-nav">
           <NavLink to="/dashboard">
-            <LayoutDashboard className="nav-icon" size={16} strokeWidth={1.9} />
+            <LayoutDashboard className="nav-icon" size={17} strokeWidth={1.9} />
             <span>Dashboard</span>
           </NavLink>
 
           <NavLink to="/projects">
-            <CheckSquare className="nav-icon" size={16} strokeWidth={1.9} />
-            <span>My Task</span>
+            <ClipboardList className="nav-icon" size={17} strokeWidth={1.9} />
+            <span>My Tasks</span>
           </NavLink>
 
           <NavLink to="/teams">
-            <Users className="nav-icon" size={16} strokeWidth={1.9} />
+            <Users className="nav-icon" size={17} strokeWidth={1.9} />
             <span>Teams</span>
           </NavLink>
         </nav>
+
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="avatar">
+              {user.avatarUrl ? (
+                <img
+                  alt={user.name}
+                  src={getAvatarUrl(user.avatarUrl)}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                initials
+              )}
+            </div>
+            <div className="sidebar-user__info">
+              <strong>{user.name}</strong>
+              <span>{user.email}</span>
+            </div>
+          </div>
+          <button className="sidebar-footer__button" type="button" onClick={logout}>
+            <LogOut className="nav-icon" size={17} strokeWidth={1.9} />
+            <span>Logout</span>
+          </button>
+        </div>
       </aside>
 
       <main className="main-stage">
@@ -53,30 +85,22 @@ export function AppLayout() {
           <label className="searchbox">
             <Search className="searchbox-icon" size={16} strokeWidth={1.9} />
             <input
-              placeholder="Search or type a command"
+              placeholder="Search tasks, projects, or people"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
             />
           </label>
 
-          <div className="topbar-actions">
-            <button className="icon-button" type="button" aria-label="Notifications">
-              <Bell className="bell-icon" size={18} strokeWidth={1.9} />
-              <span className="notification-dot" />
-            </button>
-          </div>
-
-          <div className="profile-menu" tabIndex={0}>
-            <button className="avatar-button" title={user.name} type="button">
+          <div className="topbar-avatar" title={user.name}>
+            {user.avatarUrl ? (
+              <img
+                alt={user.name}
+                className="avatar"
+                src={getAvatarUrl(user.avatarUrl)}
+              />
+            ) : (
               <div className="avatar">{initials}</div>
-            </button>
-            <div className="profile-popover">
-              <strong>{user.name}</strong>
-              <p>{user.email}</p>
-              <button className="logout-popover-button" type="button" onClick={logout}>
-                Logout
-              </button>
-            </div>
+            )}
           </div>
         </header>
 

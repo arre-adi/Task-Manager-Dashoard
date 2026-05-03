@@ -28,7 +28,8 @@ const projectSelectQuery = `
           'id', members.user_id,
           'name', member_user.name,
           'email', member_user.email,
-          'role', members.role
+          'role', members.role,
+          'avatar_url', member_user.avatar_url
         )
       ) FILTER (WHERE members.id IS NOT NULL),
       '[]'

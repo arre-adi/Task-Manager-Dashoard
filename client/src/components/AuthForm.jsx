@@ -16,9 +16,8 @@ export function AuthForm({
     <div className="auth-shell">
       <section className="auth-card">
         <div className="auth-copy">
-          <p className="eyebrow">Team Flow</p>
+          <p className="eyebrow">Task Orbit</p>
           <h1>{title}</h1>
-          <p>{description}</p>
         </div>
 
         <form className="auth-form" onSubmit={onSubmit}>

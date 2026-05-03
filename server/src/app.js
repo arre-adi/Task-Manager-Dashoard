@@ -16,6 +16,7 @@ app.use(
 );
 app.use(express.json());
 app.use(morgan("dev"));
+app.use("/avatars", express.static("public/avatars"));
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });

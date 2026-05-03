@@ -3,7 +3,8 @@ export function sanitizeUser(row) {
     id: Number(row.id),
     name: row.name,
     email: row.email,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    avatarUrl: row.avatar_url
   };
 }
 
@@ -15,7 +16,8 @@ export function serializeProject(row) {
           id: Number(member.id),
           name: member.name,
           email: member.email,
-          role: member.role
+          role: member.role,
+          avatarUrl: member.avatar_url
         }))
     : [];
 
@@ -46,12 +48,14 @@ export function serializeTask(row) {
     createdBy: {
       id: Number(row.created_by_id),
       name: row.created_by_name,
-      email: row.created_by_email
+      email: row.created_by_email,
+      avatarUrl: row.created_by_avatar_url
     },
     assignedTo: {
       id: Number(row.assigned_to_id),
       name: row.assigned_to_name,
-      email: row.assigned_to_email
+      email: row.assigned_to_email,
+      avatarUrl: row.assigned_to_avatar_url
     }
   };
 }

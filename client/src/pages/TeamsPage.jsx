@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useAppData } from "../hooks/useAppData.js";
+import { getAvatarUrl } from "../utils/avatar.js";
 
 export function TeamsPage() {
   const { projects, tasks } = useAppData();
@@ -25,12 +26,14 @@ export function TeamsPage() {
     tasks.forEach((task) => {
       const assignedMember = memberMap.get(task.assignedTo.id);
 
-      if (assignedMember) {
-        assignedMember.totalTasks += 1;
+      if (!assignedMember) {
+        return;
+      }
 
-        if (task.status !== "DONE") {
-          assignedMember.activeTasks += 1;
-        }
+      assignedMember.totalTasks += 1;
+
+      if (task.status !== "DONE") {
+        assignedMember.activeTasks += 1;
       }
     });
 
@@ -44,24 +47,36 @@ export function TeamsPage() {
 
   return (
     <div className="page-grid">
-      <section className="dashboard-intro">
-        <div className="dashboard-intro__copy">
-          <p className="section-kicker">Organization Members</p>
-          <p>People collaborating with you across projects and active software delivery tasks.</p>
+      <section className="dashboard-header panel">
+        <div>
+          <h1 className="section-title">Team Members</h1>
         </div>
       </section>
 
       <section className="teams-grid">
         {members.map((member) => (
           <article className="team-card" key={member.id}>
-            <div className="team-card__avatar">{member.name.slice(0, 1)}</div>
-            <div className="team-card__body">
-              <strong>{member.name}</strong>
-              <p>{member.email}</p>
-              <span className={`status-pill ${member.role === "ADMIN" ? "status-pill--in_progress" : "status-pill--todo"}`}>
+            <div className="team-card__top">
+              <div className="team-card__avatar">
+                {member.avatarUrl ? (
+                  <img
+                    alt={member.name}
+                    src={getAvatarUrl(member.avatarUrl)}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  member.name.slice(0, 1)
+                )}
+              </div>
+              <div className="team-card__identity">
+                <strong>{member.name}</strong>
+                <p>{member.email}</p>
+              </div>
+              <span className={`status-pill status-pill--${member.role === "ADMIN" ? "done" : "todo"}`}>
                 {member.role}
               </span>
             </div>
+
             <div className="team-card__stats">
               <div>
                 <span>Projects</span>
@@ -76,6 +91,7 @@ export function TeamsPage() {
                 <strong>{member.totalTasks}</strong>
               </div>
             </div>
+
             <div className="team-card__projects">
               {member.projects.map((project) => (
                 <span className="project-chip" key={project}>
