@@ -85,11 +85,3 @@ npm run dev:server
 npm run dev:client
 ```
 The frontend will be available at http://localhost:5173 and the backend at http://localhost:4000.
-
-## Deployment on Railway
-
-1. Connect your GitHub repository to Railway.
-2. Add a PostgreSQL service in your Railway project.
-3. Link the DATABASE_URL to your server service.
-4. Set the necessary environment variables (JWT_SECRET, NODE_ENV=production).
-5. Ensure the Start Command is set to 'npm start' for the production build.
